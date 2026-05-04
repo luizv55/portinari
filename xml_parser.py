@@ -48,5 +48,13 @@ def guia_consulta(caminho):
     return lista_dados
 
 
-lista1 = guia_consulta(r"C:\Users\Max\OneDrive\Documentos\Projeto\Portinari\00000440322026010000000090203\4020010000000090000000000263322302026010000044032001203.xml")
-print(lista1[0])
+# Função para leitura da guia SADT
+def guia_sadt(caminho):
+    ns = {'ans': 'http://www.ans.gov.br/padroes/tiss/schemas'}
+    tree = etree.parse(caminho)
+    root = tree.getroot()
+    guias = root.xpath('.//ans:guiaSP-SADT', namespaces=ns)
+ 
+    # Informações da guia
+    lista_dados = []
+    for guia in guias
