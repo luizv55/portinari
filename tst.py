@@ -1,17 +1,18 @@
 import flet as ft
 import xml.etree.ElementTree as ET
 import json
-import importlib.resources
-from xml_parser import cabecalho, guia_consulta
+from xml_parser import cabecalho, guia_consulta, guia_sadt
 
 # Extraindo as informações do cabeçalho
-caminho = r"C:\Users\luizvieira\Documents\Projeto\portinari\00000440322026010000000090203\4020010000000090000000000263322302026010000044032002203.xml"
+caminho = r"C:\Users\luizvieira\Documents\Projeto\portinari\00000440322026010000000090203\4020020000000090000000000263322302026010000044032004203.xml"
 lote, data_registro, hr_registro, cnpj_origem, cnpj_destino = cabecalho(caminho)
 
 
 # Extraindo as informações de consulta
-caminho1 = r"C:\Users\luizvieira\Documents\Projeto\portinari\00000440322026010000000090203\4020010000000090000000000263322302026010000044032002203.xml"
-lista_dados = guia_consulta(caminho1)
+caminho1 = r"C:\Users\luizvieira\Documents\Projeto\portinari\00000440322026010000000090203\4020020000000090000000000263322302026010000044032004203.xml"
+lista_dados, guias_consulta = guia_consulta(caminho1)
+if len(guias_consulta) == 0:
+    lista_dados, guias_sadt = guia_sadt(caminho1)
 
 # Extraindo as informações de especialidades
 with open("src/CBOS.json", "r", encoding="utf-8") as f:
@@ -20,6 +21,27 @@ with open("src/CBOS.json", "r", encoding="utf-8") as f:
 # Extraindo informações de conselho
 with open("src/conselho.json", "r", encoding="utf-8") as f:
     tabela_conselho = json.load(f)
+
+# Extraindo informações de UF do conselho
+with open("src/UF.json", "r", encoding="utf-8") as f:
+    tabela_conselho_UF = json.load(f)
+
+# Extraindo as informações de caraterAtendimento:
+with open("src/caraterAtendimento.json", "r", encoding="utf-8") as f:
+    tabela_caraterAtendimento = json.load(f)
+
+# Extraindo as informações de regimeAtendimento:
+with open("src/regimeAtendimento.json", "r", encoding="utf-8") as f:
+    tabela_regimeAtendimento = json.load(f)
+
+# Extraindo as informações de tipoAtendimento:
+with open("src/tipoAtendimento.json", "r", encoding="utf-8") as f:
+    tabela_tipoAtendimento = json.load(f)
+
+# Extraindo as informações de indicacaoAcidente
+with open("src/indicacaoAcidente.json", "r", encoding="utf-8") as f:
+    tabela_indicacaoAcidente = json.load(f)
+
 
 
 def main(page: ft.Page):
@@ -41,72 +63,209 @@ def main(page: ft.Page):
             expand=col,
         )
 
-    # Função para gerar um container para cada guia
+
+    # Função para gerar um container para cada guia de consulta
     def criar_card_consulta(dados):
-        # Formatação de data
-        d = dados['data_atendimento']
-        data_br = f"{d[8:10]}/{d[5:7]}/{d[0:4]}"
+        if guias_consulta != 0:
+            # Formatação de data
+            d = str(dados.get('data_atendimento', ''))
+            data_br = f"{d[8:10]}/{d[5:7]}/{d[0:4]}"
 
-        # Pega o código CBOS do XML
-        codigo_cbo = str(dados['cbos'])
-        # Buscando a profissão
-        nome_especialidade = tabela_cbos.get(codigo_cbo, 'Especialidade não identificada')
+            # Pega o código CBOS do XML
+            codigo_cbo = str(dados['cbos'])
+            # Buscando a profissão
+            nome_especialidade = tabela_cbos.get(codigo_cbo, 'Especialidade não identificada')
 
-        # Pega o código do conselho
-        codigo_conselho = str(dados['cd_conselho'])
-        # Buscando pelo conselho
-        nome_conselho = tabela_conselho.get(codigo_conselho, 'Conselho não identificado')
+            # Pega o código do conselho
+            codigo_conselho = str(dados['cd_conselho'])
+            # Buscando pelo conselho
+            nome_conselho = tabela_conselho.get(codigo_conselho, 'Conselho não identificado')
 
-        return ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.colors.BLUE_800)
+            return ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.colors.BLUE_800)
+                    ]),
+                    ft.Row([
+                        field_box("Guia Prestador", dados['guia_prestador'], ft.Icons.ASSIGNMENT, col=True),
+                        field_box("Guia Operadora", dados['guia_operadora'], ft.Icons.BUSINESS, col=True),
+                        field_box("Carteira", dados['carteira'], ft.Icons.CONTACT_EMERGENCY, col=True)
+                    ]),
+
+                    ft.Divider(height=30, color=ft.colors.TRANSPARENT),
+
+                    ft.Row([
+                        ft.Text('INFORMAÇÕES DO PROFISSIONAL', weight="bold", color=ft.colors.BLUE_800)
+                    ]),
+                    ft.Row([
+                        field_box("Nome do Profissinal", dados['nome_prof'], ft.Icons.MEDICAL_SERVICES, col=True),
+                        field_box("CBOS", f"{dados['cbos']} - {nome_especialidade}", ft.Icons.WORK_HISTORY, col=True)
+                    ]),
+                    ft.Row([
+                        field_box("Códido do Conselho", f"{dados['cd_conselho']} - {nome_conselho}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        field_box("Número do Conselho", dados['nr_conselho'], ft.Icons.FINGERPRINT, col=True),
+                        field_box("UF", dados['cd_uf'], ft.Icons.MAP, col=True)]),
+                    
+                    ft.Divider(height=30, color=ft.colors.TRANSPARENT),
+
+
+                    ft.Row([
+                        ft.Text('INFORMAÇÕES DO PROCEDIMENTO', weight='bold', color=ft.colors.BLUE_800)
+                    ]),
+                    ft.Row([
+                        field_box("Data do Atendimento", data_br, ft.Icons.CALENDAR_MONTH, col=True),
+                        field_box("Tipo do Atendimento", dados['tp_atendimento'], ft.Icons.CATEGORY, col=True),
+                    ]),
+                    ft.Row([
+                        field_box("Código do Procedimento", dados['cd_proc'], ft.Icons.NUMBERS, col=True),
+                        field_box("Código da Tabela", dados['cd_tabela'], ft.Icons.TABLE_CHART, col=True),
+                        field_box("Valor do Procedimento", dados['vl_proc'], ft.Icons.ATTACH_MONEY, col=True),
+                    ])
                 ]),
-                ft.Row([
-                    field_box("Guia Prestador", dados['guia_prestador'], ft.icons.ASSIGNMENT, col=True),
-                    field_box("Guia Operadora", dados['guia_operadora'], ft.icons.BUSINESS, col=True),
-                    field_box("Carteira", dados['carteira'], ft.icons.CONTACT_EMERGENCY, col=True)
+                margin=ft.margin.only(top=10, bottom=10),
+                padding=40,
+                bgcolor=ft.colors.WHITE,
+                border_radius=15,
+                shadow=ft.BoxShadow(blur_radius=15, color=ft.colors.with_opacity(0.1, ft.colors.BLACK)),
+                width=800,
+            )
+        return ft.Container()
+# ====================================================================================================================
+    # Container com as informações da guia SP-SADT
+    def criar_card_sadt(dados):
+        if guias_sadt != 0:
+            # Pega o código CBOS do XML
+            codigo_cbo = str(dados.get('CBOS_conselho_prof_solicitante', ''))
+            # Buscando a profissão
+            nome_especialidade = tabela_cbos.get(codigo_cbo, 'Especialidade não identificada')
+
+            # Pega o código do conselho
+            codigo_conselho = str(dados.get('conselho_prof_solicitante', ''))
+            # Buscando pelo conselho
+            nome_conselho = tabela_conselho.get(codigo_conselho, 'Conselho não identificado')
+            # Pega a UF do conselho
+            codigo_UF = str(dados.get('UF_conselho_prof_solicitante', ''))
+            codigo_UF1 = tabela_conselho_UF.get(codigo_UF, 'UF não identificado')
+
+            # Pega as informações sobre o caracter de atendimento
+            codigo_carater = str(dados.get('carater_atendimento', ''))
+            codigo_carater1 = tabela_caraterAtendimento.get(codigo_carater, 'Carácter de atendimento não identificado')
+
+            # Pega as informações sobre o tipo de atendimento
+            codigo_tp_atendimento = str(dados.get('tipo_atendimento', ''))
+            codigo_tp_atendimento1 = tabela_tipoAtendimento.get(codigo_tp_atendimento, 'Tipo de atendimento não identificado')
+
+            # Pega as informações sobre a indicacao de acidente
+            codigo_indicacaoAcidente = str(dados.get('indicacao_acidente', ''))
+            codigo_indicacaoAcidente1 = tabela_indicacaoAcidente.get(codigo_indicacaoAcidente, 'Tipo de indicação acidente não identificado')
+
+            # Pega as informações sobre regime de atendimento
+            codigo_regimeAtendimento = str(dados.get('regime_atendimento', ''))
+            codigo_regimeAtendimento1 = tabela_regimeAtendimento.get(codigo_regimeAtendimento, 'Tipo de regime de atendimento não identificado')
+
+            # Data de autorização
+            d = str(dados.get('data_autorizacao', ''))
+
+            # Função interna para cada card de procedimento
+            def criar_card_procedimento(proc):
+                # Formatação de data
+                d = str(proc.get('data_execucao', ''))
+                data_br = f"{d[8:10]}/{d[5:7]}/{d[0:4]}" if d else '-'
+
+                hora_inicial = str(proc.get('hora_inicial', '-') or '-')[:5]
+                hora_final = str(proc.get('hora_final', '-') or '-')[:5]
+
+                return ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text(f"PROCEDIMENTO #{proc.get('sequencial_item', '-')}", weight="bold", color=ft.colors.BLUE_800)
+                        ]),
+                        ft.Row([
+                            ft.Column([
+                                field_box("Data de Execução", data_br, ft.Icons.CALENDAR_MONTH, col=True),
+                                field_box("Hora Inicial", hora_inicial, ft.Icons.ACCESS_TIME, col=True),
+                                field_box("Hora Final", hora_final, ft.Icons.ACCESS_TIME_FILLED, col=True),
+                                field_box("Cód. Tabela", str(proc.get('codigo_tabela', '-') or '-'), ft.Icons.TABLE_CHART, col=True),
+                                field_box("Cód. Procedimento", str(proc.get('cd_procedimento', '-') or '-'), ft.Icons.NUMBERS, col=True),
+                            ], expand=True, spacing=8),
+
+                            ft.Column([
+                                field_box("Descrição", str(proc.get('desc_procedimento', '-') or '-'), ft.Icons.DESCRIPTION, col=True),
+                                field_box("Quantidade Executada", str(proc.get('qtd_executada', '-') or '-'), ft.Icons.EXPOSURE_PLUS_1, col=True),
+                                field_box("Redução/Acréscimo", str(proc.get('reducao_acrescimo', '-') or '-'), ft.Icons.PERCENT, col=True),
+                                field_box("Valor Unitário", str(proc.get('valor_unitario', '-') or '-'), ft.Icons.ATTACH_MONEY, col=True),
+                                field_box("Valor Total", str(proc.get('valor_total', '-') or '-'), ft.Icons.PAID, col=True),
+                            ], expand=True, spacing=8),
+                        ], spacing=10),
+                    ]),
+                    margin=ft.margin.only(top=10),
+                    padding=ft.padding.all(20),
+                    bgcolor=ft.colors.BLUE_50,
+                    border_radius=10,
+                    border=ft.border.all(1, ft.colors.BLUE_100),
+                )
+
+            # Gera os cards de procedimento
+            procedimentos = dados.get('procedimentos', [])
+            cards_procedimentos = [criar_card_procedimento(p) for p in procedimentos]
+
+
+            return ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.colors.BLUE_800),
+                        ft.Text(f"Senha: {dados['senha']} | Data Autorização: {d[8:10]}/{d[5:7]}/{d[0:4]}", color=ft.colors.GREY_600)
+                        
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Row([
+                        field_box("Registro ANS", dados['registro_ANS'], ft.Icons.ASSIGNMENT, col=True),
+                        field_box("Guia Prestador", dados['guia_prestador'], ft.Icons.ASSIGNMENT, col=True),
+                        field_box("Guia Operadora", dados['guia_operadora'], ft.Icons.ASSIGNMENT, col=True),
+                        field_box("Carteirinha", dados['carteira'], ft.Icons.ASSIGNMENT, col=True),
+                    ]),
+                    ft.Row([
+                        ft.Text("DADOS DO SOLICITANTE", weight='bold', color=ft.colors.BLUE_800),
+                    ]),
+                    ft.Row([
+                        field_box('Nome', dados['contratado_solicitante'][:13], ft.Icons.ASSIGNMENT, col=True),
+                        field_box('CNPJ', dados['cnpj_contratado'], ft.Icons.ASSIGNMENT, col=True)
+                    ]),
+                    ft.Row([
+                        field_box('Nome do Profissional', dados['nome_prof_solicitante'], ft.Icons.ASSIGNMENT, col=True),
+                        field_box("CBOS", f"{dados['CBOS_conselho_prof_solicitante']} - {nome_especialidade}", ft.Icons.WORK_HISTORY, col=True),
+                    ]),
+                    ft.Row([
+                        field_box("Códido do Conselho", f"{dados['conselho_prof_solicitante']} - {nome_conselho}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        field_box('Número do Conselho', dados['nr_conselho_prof_solicitante'], ft.Icons.ASSIGNMENT, col=True),
+                        field_box("UF do Conselho", f"{dados['UF_conselho_prof_solicitante']} - {codigo_UF1}", ft.Icons.WORK_HISTORY, col=True),
+                    ]),
+                    ft.Row([
+                        ft.Text("ATENDIMENTO", weight='bold', color=ft.Colors.BLUE_800)
+                    ]),
+                    ft.Row([
+                        field_box('Caráter de Atendimento', f"{dados['carater_atendimento']} - {codigo_carater1}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        field_box('Indicação', dados['indicacao_clinica'], ft.Icons.ASSIGNMENT, col=True),
+                    ]),
+                    ft.Row([
+                        field_box('Tipo de Atendimento', f"{dados['tipo_atendimento']} - {codigo_tp_atendimento1}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        field_box('Indicação de Acidente', f"{dados['indicacao_acidente']} - {codigo_indicacaoAcidente1}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        field_box('Regime de Atendimento', f"{dados['regime_atendimento']} - {codigo_regimeAtendimento1}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                    ]),
+                    ft.Divider(height=20, color=ft.colors.TRANSPARENT),
+                    ft.Row([
+                        ft.Icon(ft.Icons.MEDICAL_SERVICES, size=16, color=ft.colors.BLUE_800),
+                        ft.Text("PROCEDIMENTOS", weight="bold", color=ft.colors.BLUE_800),
+                    ]),
+                    *cards_procedimentos,
                 ]),
-
-                ft.Divider(height=30, color=ft.colors.TRANSPARENT),
-
-                ft.Row([
-                    ft.Text('INFORMAÇÕES DO PROFISSIONAL', weight="bold", color=ft.colors.BLUE_800)
-                ]),
-                ft.Row([
-                    field_box("Nome do Profissinal", dados['nome_prof'], ft.icons.MEDICAL_SERVICES, col=True),
-                    field_box("CBOS", f'{dados['cbos']} - {nome_especialidade}', ft.icons.WORK_HISTORY, col=True)
-                ]),
-                ft.Row([
-                    field_box("Códido do Conselho", f"{dados['cd_conselho']} - {nome_conselho}", ft.icons.ACCOUNT_BALANCE, col=True),
-                    field_box("Número do Conselho", dados['nr_conselho'], ft.icons.FINGERPRINT, col=True),
-                    field_box("UF", dados['cd_uf'], ft.icons.MAP, col=True)]),
-                
-                ft.Divider(height=30, color=ft.colors.TRANSPARENT),
-
-
-                ft.Row([
-                    ft.Text('INFORMAÇÕES DO PROCEDIMENTO', weight='bold', color=ft.colors.BLUE_800)
-                ]),
-                ft.Row([
-                    field_box("Data do Atendimento", data_br, ft.icons.CALENDAR_MONTH, col=True),
-                    field_box("Tipo do Atendimento", dados['tp_atendimento'], ft.icons.CATEGORY, col=True),
-                ]),
-                ft.Row([
-                    field_box("Código do Procedimento", dados['cd_proc'], ft.icons.NUMBERS, col=True),
-                    field_box("Código da Tabela", dados['cd_tabela'], ft.icons.TABLE_CHART, col=True),
-                    field_box("Valor do Procedimento", dados['vl_proc'], ft.icons.ATTACH_MONEY, col=True),
-                ])
-            ]),
-            margin=ft.margin.only(top=10, bottom=10),
-            padding=40,
-            bgcolor=ft.colors.WHITE,
-            border_radius=15,
-            shadow=ft.BoxShadow(blur_radius=15, color=ft.colors.with_opacity(0.1, ft.colors.BLACK)),
-            width=800,
-        )
-
-
+                margin=ft.margin.only(top=10, bottom=10),
+                padding=40,
+                bgcolor=ft.colors.WHITE,
+                border_radius=15,
+                shadow=ft.BoxShadow(blur_radius=15, color=ft.colors.with_opacity(0.1, ft.colors.BLACK)),
+                width=800,
+            )
+        return ft.Container()
 
 # ====================================================================================================================
     # Container com todas as informações principais
@@ -146,8 +305,12 @@ def main(page: ft.Page):
     ) 
 
     cards_column = ft.Column(spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-    for c in lista_dados:
-        cards_column.controls.append(criar_card_consulta(c))
+    if len(guias_consulta) > 0:
+        for c in lista_dados:
+            cards_column.controls.append(criar_card_consulta(c))
+    else:
+        for c in lista_dados:
+            cards_column.controls.append(criar_card_sadt(c))
 
 
     def filtrar_guias(termo: str):
