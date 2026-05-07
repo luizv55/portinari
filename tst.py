@@ -42,6 +42,14 @@ with open("src/tipoAtendimento.json", "r", encoding="utf-8") as f:
 with open("src/indicacaoAcidente.json", "r", encoding="utf-8") as f:
     tabela_indicacaoAcidente = json.load(f)
 
+# Extraindo as informações de tecnicaUtilizada
+with open("src/tecnicaUtilizada.json", "r", encoding="utf-8") as f:
+    tabela_tecnicaUtilizada = json.load(f)
+
+# Extraindo as informações de viaAcesso
+with open("src/viaAcesso.json", "r", encoding="utf-8") as f:
+    tabela_viaAcesso = json.load(f)
+
 
 
 def main(page: ft.Page):
@@ -49,6 +57,10 @@ def main(page: ft.Page):
     page.bgcolor = ft.Colors.GREY_100
     page.scroll = ft.ScrollMode.ADAPTIVE
     page.theme_mode = ft.ThemeMode.LIGHT
+
+    # Paginação
+    pagina_atual = {"index": 0}
+
 
     # Função para a criação das boxes personalizadas
     def field_box(label, value, icon, col=None):
@@ -63,6 +75,86 @@ def main(page: ft.Page):
             expand=col,
         )
 
+    # Controles de paginação
+    lbl_pagina = ft.Text("", size=14, color=ft.Colors.GREY_700, weight='bold')
+    btn_anterior = ft.ElevatedButton(
+        '◀  Anterior',
+        on_click=lambda e: navegar(-1),
+        disabled=True,
+    )
+    btn_proximo = ft.ElevatedButton(
+        'Próximo ▶',
+        on_click=lambda e: navegar(1),
+    )
+
+    card_container = ft.Column(
+        spacing=0,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
+
+
+    def atualizar_card():
+        card_container.controls.clear()
+
+        dados_filtrados = obter_dados_filtrados()
+        total = len(dados_filtrados)
+
+        if total == 0:
+            card_container.controls.append(
+                ft.Container(
+                    content=ft.Text(
+                        "Nenhuma guia encontrada",
+                        color=ft.Colors.GREY_500,
+                        size=16,
+                    ),
+                    padding=40,
+                    alignment=ft.alignment.center
+                )
+            )
+
+            lbl_pagina.value = '0 / 0'
+            btn_anterior.disabled = True
+            btn_proximo.disabled = True
+
+        else:
+            pagina_atual['index'] = max(0, min(pagina_atual['index'], total - 1))
+            dados = dados_filtrados[pagina_atual['index']]
+
+            if len(guias_consulta) > 0:
+                card_container.controls.append(criar_card_consulta(dados))
+            else:
+                card_container.controls.append(criar_card_sadt(dados))
+
+            lbl_pagina.value = f"{pagina_atual['index'] + 1} / {total}"
+            btn_anterior.disabled = pagina_atual['index'] == 0
+            btn_proximo.disabled = pagina_atual['index'] == total - 1
+        
+        page.update()
+
+    def navegar(direcao: int):
+        pagina_atual["index"] += direcao
+        atualizar_card()
+
+    termo_busca = {"valor": ""}
+
+
+    def obter_dados_filtrados():
+        termo = termo_busca["valor"].strip()
+        if not termo:
+            return lista_dados
+        return [c for c in lista_dados if termo in str(c.get("guia_prestador", ""))]
+
+
+    def filtrar_guias(termo: str):
+        termo_busca["valor"] = termo
+        pagina_atual["index"] = 0  # volta para a primeira ao filtrar
+        atualizar_card()
+
+
+    def limpar_pesquisa():
+        search_field.value = ""
+        filtrar_guias("")
 
     # Função para gerar um container para cada guia de consulta
     def criar_card_consulta(dados):
@@ -163,6 +255,7 @@ def main(page: ft.Page):
             codigo_regimeAtendimento = str(dados.get('regime_atendimento', ''))
             codigo_regimeAtendimento1 = tabela_regimeAtendimento.get(codigo_regimeAtendimento, 'Tipo de regime de atendimento não identificado')
 
+
             # Data de autorização
             d = str(dados.get('data_autorizacao', ''))
 
@@ -175,28 +268,65 @@ def main(page: ft.Page):
                 hora_inicial = str(proc.get('hora_inicial', '-') or '-')[:5]
                 hora_final = str(proc.get('hora_final', '-') or '-')[:5]
 
+                # Pega as informações sobre via de acesso
+                codigo_viaAcesso = tabela_viaAcesso.get(str(proc.get('via_acesso', '-')), 'Ausente')
+
+                # Pega as informações sobre tecnica utilizada
+                codigo_tecnicaUtilizada = tabela_tecnicaUtilizada.get(str(proc.get('tecnica_utilizada', '-')), 'Ausente')
+
+                # Pega as informações sobre codigo de conselho
+                codigo_conselho10 = tabela_conselho.get(str(proc.get('conselho_equipe', '-')), '') 
+
+                # Pega as informações sobre UF
+                codigo_UF10 = tabela_conselho_UF.get(str(proc.get('UF_conselho_prof_equipe', '-')), '')
+
+                # Pega as informações sobre CBOS
+                codigo_CBOS10 = tabela_cbos.get(str(proc.get('CBOS_conselho_prof_equipe', '-')), '')
+
                 return ft.Container(
                     content=ft.Column([
                         ft.Row([
-                            ft.Text(f"PROCEDIMENTO #{proc.get('sequencial_item', '-')}", weight="bold", color=ft.colors.BLUE_800)
+                            ft.Text(f"PROCEDIMENTO EXECUTADO - {proc.get('sequencial_item', '-')}", weight="bold", color=ft.colors.BLUE_800)
                         ]),
                         ft.Row([
-                            ft.Column([
-                                field_box("Data de Execução", data_br, ft.Icons.CALENDAR_MONTH, col=True),
-                                field_box("Hora Inicial", hora_inicial, ft.Icons.ACCESS_TIME, col=True),
-                                field_box("Hora Final", hora_final, ft.Icons.ACCESS_TIME_FILLED, col=True),
-                                field_box("Cód. Tabela", str(proc.get('codigo_tabela', '-') or '-'), ft.Icons.TABLE_CHART, col=True),
-                                field_box("Cód. Procedimento", str(proc.get('cd_procedimento', '-') or '-'), ft.Icons.NUMBERS, col=True),
-                            ], expand=True, spacing=8),
-
-                            ft.Column([
-                                field_box("Descrição", str(proc.get('desc_procedimento', '-') or '-'), ft.Icons.DESCRIPTION, col=True),
-                                field_box("Quantidade Executada", str(proc.get('qtd_executada', '-') or '-'), ft.Icons.EXPOSURE_PLUS_1, col=True),
-                                field_box("Redução/Acréscimo", str(proc.get('reducao_acrescimo', '-') or '-'), ft.Icons.PERCENT, col=True),
-                                field_box("Valor Unitário", str(proc.get('valor_unitario', '-') or '-'), ft.Icons.ATTACH_MONEY, col=True),
-                                field_box("Valor Total", str(proc.get('valor_total', '-') or '-'), ft.Icons.PAID, col=True),
-                            ], expand=True, spacing=8),
-                        ], spacing=10),
+                            field_box('Data de Execução', data_br, ft.Icons.CALENDAR_MONTH, col=True),
+                            field_box('Hora Inicial', hora_inicial, ft.Icons.ACCESS_TIME, col=True),
+                            field_box('Hora Final', hora_final, ft.Icons.ACCESS_TIME_FILLED, col=True)]),
+                        ft.Row([
+                            field_box('Codigo da Procedimento', proc.get('cd_procedimento'), ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Codigo da Tabela', proc.get('codigo_tabela'), ft.Icons.ASSIGNMENT, col=True),
+                        ]),
+                        ft.Row([
+                            field_box('Descrição do Procedimento', proc.get('desc_procedimento'), ft.Icons.ASSIGNMENT, col=True)
+                        ]),
+                        ft.Row([
+                            field_box('Quantidade Executada', proc.get('qtd_executada'), ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Via de Acesso', f"{proc.get('via_acesso') or ''}  {codigo_viaAcesso}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Técnica Utilizada', f"{proc.get('tecnica_utilizada') or ''} {codigo_tecnicaUtilizada}", ft.Icons.ASSIGNMENT, col=True)
+                        ]),
+                        ft.Row([
+                            ft.Text("VALORAÇÃO", weight="bold", color=ft.colors.BLUE_800)
+                        ]),
+                        ft.Row([
+                            field_box('Valor Unitário', f"{proc.get('valor_unitario')}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Valor Total', f"{proc.get('valor_total')}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Redução de Acrescimo', f"{proc.get('reducao_acrescimo')}", ft.Icons.ASSIGNMENT, col=True)
+                        ]),
+                        ft.Row([
+                            ft.Text("PROFISSIONAL", weight="bold", color=ft.colors.BLUE_800),
+                        ]),
+                        ft.Row([
+                            field_box('Nome', f"{proc.get('nome_prof_equipe') or '-'}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('CPF Contratado', f"{proc.get('cpf_contratado_equipe') or '-'}", ft.Icons.ASSIGNMENT, col=True)
+                        ]),
+                        ft.Row([
+                            field_box('Código do Conselho', f"{proc.get('conselho_equipe') or ''} - {codigo_conselho10}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Número do Conselho', f"{proc.get('nr_conselho_prof_equipe') or '-'}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('UF do Conselho', f"{proc.get('UF_conselho_prof_equipe') or ''} - {codigo_UF10}", ft.Icons.ASSIGNMENT, col=True),
+                        ]),
+                        ft.Row([
+                            field_box('CBOS', f"{proc.get('CBOS_conselho_prof_equipe') or ''} - {codigo_CBOS10}", ft.Icons.ASSIGNMENT, col=True)
+                        ])
                     ]),
                     margin=ft.margin.only(top=10),
                     padding=ft.padding.all(20),
@@ -235,7 +365,7 @@ def main(page: ft.Page):
                         field_box("CBOS", f"{dados['CBOS_conselho_prof_solicitante']} - {nome_especialidade}", ft.Icons.WORK_HISTORY, col=True),
                     ]),
                     ft.Row([
-                        field_box("Códido do Conselho", f"{dados['conselho_prof_solicitante']} - {nome_conselho}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        field_box("Código do Conselho", f"{dados['conselho_prof_solicitante']} - {nome_conselho}", ft.Icons.ACCOUNT_BALANCE, col=True),
                         field_box('Número do Conselho', dados['nr_conselho_prof_solicitante'], ft.Icons.ASSIGNMENT, col=True),
                         field_box("UF do Conselho", f"{dados['UF_conselho_prof_solicitante']} - {codigo_UF1}", ft.Icons.WORK_HISTORY, col=True),
                     ]),
@@ -250,6 +380,27 @@ def main(page: ft.Page):
                         field_box('Tipo de Atendimento', f"{dados['tipo_atendimento']} - {codigo_tp_atendimento1}", ft.Icons.ACCOUNT_BALANCE, col=True),
                         field_box('Indicação de Acidente', f"{dados['indicacao_acidente']} - {codigo_indicacaoAcidente1}", ft.Icons.ACCOUNT_BALANCE, col=True),
                         field_box('Regime de Atendimento', f"{dados['regime_atendimento']} - {codigo_regimeAtendimento1}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                    ]),
+                    ft.Row([
+                        ft.Text('RESUMO DA COBRANÇA POR GUIA', weight='bold', color=ft.Colors.BLUE_800)
+                    ]),
+                    ft.Column([
+                        ft.Row([
+                            field_box('Valor dos procedimentos', f"R$ {dados['valor_tot_proc']}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                            field_box('Valor das Diarias', f"R$ {dados['valor_tot_diarias']}", ft.Icons.ACCOUNT_BALANCE, col=True)
+                        ]),
+                        ft.Row([
+                            field_box('Valor das Taxas de Alugueis', f"R$ {dados['valor_tot_tx_alugueis']}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                            field_box('Valor dos Materiais', f"R$ {dados['valor_tot_material']}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        ]),
+                        ft.Row([
+                            field_box('Valor dos Medicamentos', f"R$ {dados['valor_tot_medicamento']}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                            field_box('Valor de OPME', f"R$ {dados['valor_tot_OPME']}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                        ]),
+                        ft.Row([
+                            field_box('Valor dos Gases Medicinais', f"R$ {dados['valor_tot_gases']}", ft.Icons.ACCOUNT_BALANCE, col=True),
+                            field_box('Valor Total Geral', f"R$ {dados['valor_tot_geral']}", ft.Icons.ACCOUNT_BALANCE, col=True)
+                        ])
                     ]),
                     ft.Divider(height=20, color=ft.colors.TRANSPARENT),
                     ft.Row([
@@ -363,14 +514,19 @@ def main(page: ft.Page):
 
 
 
-
+    nav_bar = ft.Container(
+            content=ft.Row(
+                [btn_anterior, lbl_pagina, btn_proximo],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=20,
+            ),
+            margin=ft.margin.only(top=5, bottom=5),
+            width=800,
+        )
 
     # Layout final
     layout = ft.Column(
-            controls=[
-                documento,
-                cards_column,
-            ],
+            controls=[documento, nav_bar, card_container],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
     
@@ -393,5 +549,8 @@ def main(page: ft.Page):
             expand=True,
         )
     )
+
+    atualizar_card()
+
 
 ft.app(target=main)

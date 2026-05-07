@@ -117,7 +117,6 @@ def guia_sadt(caminho):
                 "codigo_tabela": get_text(proc, './/ans:codigoTabela', ns),
                 "cd_procedimento": get_text(proc, './/ans:codigoProcedimento', ns),
                 "desc_procedimento": get_text(proc, './/ans:descricaoProcedimento', ns),
-                "codigo_tabela": get_text(proc, './/ans:codigoTabela', ns),
                 "qtd_executada": get_text(proc, './/ans:quantidadeExecutada', ns),
                 "via_acesso": get_text(proc, './/ans:viaAcesso', ns),
                 "tecnica_utilizada": get_text(proc, './/ans:tecnicaUtilizada', ns),
