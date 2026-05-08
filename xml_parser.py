@@ -69,6 +69,9 @@ def guia_sadt(caminho):
     # Para as guias de SP-SADT
     guias = root.xpath('.//ans:guiaSP-SADT', namespaces=ns)
 
+    # Para as outras despesas de SP-SADT
+    guias_outras_despesas = root.xpath('//ans:outrasDespesas/ans:despesa', namespaces=ns)
+
     # Informações da guia
     lista_dados = []
     for guia in guias:
@@ -113,7 +116,6 @@ def guia_sadt(caminho):
                 "data_execucao": get_text(proc, './/ans:dataExecucao', ns),
                 "hora_inicial": get_text(proc, './/ans:horaInicial', ns),
                 "hora_final": get_text(proc, './/ans:horaFinal', ns),
-                "sequencial_item": get_text(proc, './/ans:sequencialItem', ns),
                 "codigo_tabela": get_text(proc, './/ans:codigoTabela', ns),
                 "cd_procedimento": get_text(proc, './/ans:codigoProcedimento', ns),
                 "desc_procedimento": get_text(proc, './/ans:descricaoProcedimento', ns),
@@ -134,8 +136,27 @@ def guia_sadt(caminho):
             for proc in guia.findall('.//ans:procedimentoExecutado', ns)
                              ]
 
+            # Lista de outras despesas por guia
+            ,"outras_despesas": [{
+                "sequencial_item2" : get_text(proc, './/ans:sequencialItem', ns),
+                "codigo_despesa" : get_text(proc, './/ans:codigoDespesa', ns),
+                "data_execucao2": get_text(proc, './/ans:dataExecucao', ns),
+                "hora_inicial2": get_text(proc, './/ans:horaInicial', ns),
+                "hora_final2": get_text(proc, './/ans:horaFinal', ns),
+                "codigo_tabela2": get_text(proc, './/ans:codigoTabela', ns),
+                "codigo_procedimento2": get_text(proc, './/ans:codigoProcedimento', ns),
+                "qtd_executada2": get_text(proc, './/ans:quantidadeExecutada', ns),
+                "unidade_medida2": get_text(proc, './/ans:unidadeMedida', ns),
+                "reducao_acrescimo2": get_text(proc, './/ans:reducaoAcrescimo', ns),
+                "valor_unitario2": get_text(proc, './/ans:valorUnitario', ns),
+                "valor_total2": get_text(proc, './/ans:valorTotal', ns),
+                "desc_proc2": get_text(proc, './/ans:descricaoProcedimento', ns)
+            }
+            for proc in guia.findall('.//ans:outrasDespesas/ans:despesa', ns)
+            ]
+
             
         }
         lista_dados.append(dados_guia)
-    return lista_dados, guias
+    return lista_dados, guias, guias_outras_despesas
     

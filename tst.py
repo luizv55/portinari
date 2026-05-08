@@ -12,7 +12,8 @@ lote, data_registro, hr_registro, cnpj_origem, cnpj_destino = cabecalho(caminho)
 caminho1 = r"C:\Users\luizvieira\Documents\Projeto\portinari\00000440322026010000000090203\4020020000000090000000000263322302026010000044032004203.xml"
 lista_dados, guias_consulta = guia_consulta(caminho1)
 if len(guias_consulta) == 0:
-    lista_dados, guias_sadt = guia_sadt(caminho1)
+    lista_dados, guias_sadt, guias_outras = guia_sadt(caminho1)
+
 
 # Extraindo as informações de especialidades
 with open("src/CBOS.json", "r", encoding="utf-8") as f:
@@ -334,10 +335,64 @@ def main(page: ft.Page):
                     border_radius=10,
                     border=ft.border.all(1, ft.colors.BLUE_100),
                 )
+        
+            # Função interna para criar card de outras despesas
+            def card_outras_despesas(proc):
+                if guias_outras != 0:
+                    # Formatação de data
+                    d2 = str(proc.get('data_execucao2', ''))
+                    data_br2 = f"{d2[8:10]}/{d2[5:7]}/{d2[0:4]}" if d2 else '-'
+
+                    # Formatação de hora
+                    hora_inicial = str(proc.get('hora_inicial2', '-') or '-')[:5]
+                    hora_final = str(proc.get('hora_final2', '-') or '-')[:5]
+
+                    return ft.Container(
+                        content=ft.Column([
+                            ft.Row([
+                                ft.Text(f"SERVIÇO EXECUTADO - {proc.get('sequencial_item2', '-')}", weight="bold", color=ft.colors.BLUE_800),
+                            ]),
+                            ft.Row([
+                                field_box('Data de Execução', data_br2, ft.Icons.CALENDAR_MONTH, col=True),
+                                field_box('Hora Inicial', hora_inicial, ft.Icons.ACCESS_TIME, col=True),
+                                field_box('Hora Final', hora_final, ft.Icons.ACCESS_TIME_FILLED, col=True)
+                            ]),
+                            ft.Row([
+                                field_box('Código do Procedimento', proc.get('codigo_procedimento2'), ft.Icons.ASSIGNMENT, col=True),
+                                field_box('Código da Tabela', proc.get('codigo_tabela2'), ft.Icons.ASSIGNMENT, col=True)
+                            ]),
+                            ft.Row([
+                                field_box('Descrição do Procedimento', proc.get('desc_proc2'), ft.Icons.ASSIGNMENT, col=True)
+                            ]),
+                            ft.Row([
+                                field_box('Quantidade Executada', proc.get('qtd_executada2'), ft.Icons.ASSIGNMENT, col=True),
+                                field_box('Código de Despesa', proc.get('codigo_despesa'), ft.Icons.ASSIGNMENT, col=True),
+                            ]),
+                            ft.Row([
+                                ft.Text("VALORAÇÃO", weight="bold", color=ft.colors.BLUE_800)
+                            ]),
+                            ft.Row([
+                                field_box('Valor Unitário', proc.get('valor_unitario2'), ft.Icons.ASSIGNMENT, col=True),
+                                field_box('Valor Total', proc.get('valor_total2'), ft.Icons.ASSIGNMENT, col=True),
+                                field_box('Redução Acréscimo', proc.get('reducao_acrescimo2'), ft.Icons.ASSIGNMENT, col=True),
+                            ])
+                        ]),
+                        margin=ft.margin.only(top=10),
+                        padding=ft.padding.all(20),
+                        bgcolor=ft.colors.BLUE_50,
+                        border_radius=10,
+                        border=ft.border.all(1, ft.colors.BLUE_100),
+                    )
+                return ft.Container()
+
 
             # Gera os cards de procedimento
             procedimentos = dados.get('procedimentos', [])
             cards_procedimentos = [criar_card_procedimento(p) for p in procedimentos]
+
+            # gera os cards de outras despesas
+            outras_despesas = dados.get('outras_despesas', [])
+            card_despesas = [card_outras_despesas(p) for p in outras_despesas]
 
 
             return ft.Container(
@@ -403,11 +458,24 @@ def main(page: ft.Page):
                         ])
                     ]),
                     ft.Divider(height=20, color=ft.colors.TRANSPARENT),
-                    ft.Row([
-                        ft.Icon(ft.Icons.MEDICAL_SERVICES, size=16, color=ft.colors.BLUE_800),
-                        ft.Text("PROCEDIMENTOS", weight="bold", color=ft.colors.BLUE_800),
-                    ]),
-                    *cards_procedimentos,
+                    *(
+                        [
+                            ft.Row([
+                                ft.Icon(ft.Icons.MEDICAL_SERVICES, size=16, color=ft.colors.BLUE_800),
+                                ft.Text("PROCEDIMENTOS", weight="bold", color=ft.colors.BLUE_800),
+                            ]),
+                            *cards_procedimentos,
+                        ] if cards_procedimentos else []
+                    ),
+                    *(
+                        [
+                            ft.Row([
+                                ft.Icon(ft.Icons.RECEIPT_LONG, size=16, color=ft.colors.BLUE_800),
+                                ft.Text("OUTRAS DESPESAS", weight="bold", color=ft.colors.BLUE_800),
+                            ]),
+                            *card_despesas,
+                        ] if card_despesas else []
+                    ),
                 ]),
                 margin=ft.margin.only(top=10, bottom=10),
                 padding=40,
