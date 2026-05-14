@@ -59,6 +59,13 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.ADAPTIVE
     page.theme_mode = ft.ThemeMode.LIGHT
 
+
+
+
+
+
+
+
     # Paginação
     pagina_atual = {"index": 0}
 
@@ -77,7 +84,7 @@ def main(page: ft.Page):
         )
 
     # Controles de paginação
-    lbl_pagina = ft.Text("", size=14, color=ft.Colors.GREY_700, weight='bold')
+    lbl_pagina = ft.Text("", size=14, color=ft.Colors.WHITE, weight='bold')
     btn_anterior = ft.ElevatedButton(
         '◀  Anterior',
         on_click=lambda e: navegar(-1),
@@ -485,34 +492,85 @@ def main(page: ft.Page):
                 width=800,
             )
         return ft.Container()
+    
+
+# ====================================================================================================================   
+    # Adicionando a barra de busca
+    search_field = ft.TextField(
+        hint_text="Buscar guia...",
+        prefix_icon=ft.Icons.SEARCH,
+        suffix=ft.IconButton(
+            icon=ft.Icons.CLEAR,
+            icon_size=16,
+            icon_color=ft.Colors.WHITE70,
+            on_click=lambda e: limpar_pesquisa(),
+        ),
+        border_radius=20,
+        width=180,
+        height=40,
+        text_size=13,
+        content_padding=ft.padding.only(left=10, right=10, bottom=30),
+        border_color=ft.Colors.WHITE30,
+        focused_border_color=ft.Colors.WHITE,
+        hint_style=ft.TextStyle(color=ft.Colors.WHITE54),
+        text_style=ft.TextStyle(color=ft.Colors.WHITE),
+        bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.WHITE),
+        cursor_color=ft.Colors.WHITE,
+        on_change=lambda e: filtrar_guias(e.control.value),
+        on_submit=lambda e: filtrar_guias(e.control.value),
+    )
+
+
+# ====================================================================================================================
+    # Adicionando a top bar
+    top_bar = ft.Container(
+        content=ft.Row(
+            [
+                search_field,
+                btn_anterior,
+                lbl_pagina,
+                btn_proximo
+            ],
+            alignment=ft.MainAxisAlignment.END,
+            spacing=6,
+        ),
+        bgcolor=ft.Colors.BLUE_800,
+        padding=ft.padding.symmetric(horizontal=16, vertical=8),
+        border_radius=ft.border_radius.only(top_left=15, top_right=15),
+        width=800
+    )
 
 # ====================================================================================================================
     # Container com todas as informações principais
     d = data_registro
     documento = ft.Container(
         content=ft.Column([
-            # Linha 1
-            ft.Row([
-                ft.Icon(ft.icons.DESCRIPTION_ROUNDED, size=40, color=ft.colors.BLUE_800),
-                ft.Column([
-                    ft.Text('GUIA CONSULTA', size=20, weight="bold"),
-                    ft.Text(f"ID do Registro: {lote} | Data: {d[8:10]}/{d[5:7]}/{d[0:4]}", color=ft.colors.GREY_600),
-                ], spacing=0)
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            top_bar,  # <-- barra entra aqui
+            ft.Container(
+                content=ft.Column([
+                    # Linha 1
+                    ft.Row([
+                        ft.Icon(ft.icons.DESCRIPTION_ROUNDED, size=40, color=ft.colors.BLUE_800),
+                        ft.Column([
+                            ft.Text('GUIA CONSULTA', size=20, weight="bold"),
+                            ft.Text(f"ID do Registro: {lote} | Data: {d[8:10]}/{d[5:7]}/{d[0:4]}", color=ft.colors.GREY_600),
+                        ], spacing=0)
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
 
-            # Linha 2
-            ft.Row([
-                field_box("CNPJ de Origem", cnpj_origem, ft.icons.INVENTORY_2, col=True),
-                ft.Icon(ft.icons.ARROW_FORWARD, size=40, color=ft.colors.BLUE_800),
-                field_box("CNPJ de Destino", cnpj_destino, ft.icons.INVENTORY_2, col=True)
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    # Linha 2
+                    ft.Row([
+                        field_box("CNPJ de Origem", cnpj_origem, ft.icons.INVENTORY_2, col=True),
+                        ft.Icon(ft.icons.ARROW_FORWARD, size=40, color=ft.colors.BLUE_800),
+                        field_box("CNPJ de Destino", cnpj_destino, ft.icons.INVENTORY_2, col=True)
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
 
-            ft.Divider(height=30, color=ft.colors.TRANSPARENT)
-        ]), 
-        
-        # Estilização do Container Principal
+                    ft.Divider(height=30, color=ft.colors.TRANSPARENT)
+                ]),
+                padding=40,
+            )
+        ], spacing=0),  # spacing=0 para a barra colar no conteúdo
+
         margin=ft.margin.all(20),
-        padding=40,
         bgcolor=ft.colors.WHITE,
         border_radius=15,
         shadow=ft.BoxShadow(
@@ -521,7 +579,7 @@ def main(page: ft.Page):
             color=ft.colors.with_opacity(0.1, ft.colors.BLACK),
         ),
         width=800,
-    ) 
+    )
 
     cards_column = ft.Column(spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     if len(guias_consulta) > 0:
@@ -558,27 +616,6 @@ def main(page: ft.Page):
                 )
         page.update()
 
-    def limpar_pesquisa():
-        search_field.value = ""
-        filtrar_guias("")
-        page.update()
-
-    search_field = ft.TextField(
-        hint_text="Buscar guia...",
-        prefix_icon=ft.Icons.SEARCH,
-        suffix=ft.IconButton(
-            icon=ft.Icons.CLEAR,
-            icon_size=16,
-            on_click=lambda e: limpar_pesquisa(),
-        ),
-        border_radius=10,
-        width=150,
-        height=40,
-        text_size=13,
-        content_padding=ft.padding.only(left=10, right=10, bottom=30),
-        on_change=lambda e: filtrar_guias(e.control.value),
-        on_submit=lambda e: filtrar_guias(e.control.value),
-    )
 
 
 
@@ -594,7 +631,7 @@ def main(page: ft.Page):
 
     # Layout final
     layout = ft.Column(
-            controls=[documento, nav_bar, card_container],
+            controls=[documento, card_container],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
     
@@ -608,15 +645,7 @@ def main(page: ft.Page):
         right=20,
     )
 
-    page.add(
-        ft.Stack(
-            controls=[
-                ft.Row([layout], alignment=ft.MainAxisAlignment.CENTER),
-                barra_flutuante,
-            ],
-            expand=True,
-        )
-    )
+    page.add(ft.Row([layout], alignment=ft.MainAxisAlignment.CENTER))
 
     atualizar_card()
 

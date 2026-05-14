@@ -1,118 +1,87 @@
 import flet as ft
-import xml.etree.ElementTree as ET
+import threading
 
 def main(page: ft.Page):
-    page.title = "Visualizador de Documento XML"
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.bgcolor = ft.Colors.GREY_100
-    page.scroll = ft.ScrollMode.ADAPTIVE
-    page.theme_mode = ft.ThemeMode.LIGHT
 
-    # Simulação de um XML mais robusto
-    xml_data = """
-    <produto>
-        <id>4592</id>
-        <data_cadastro>2023-10-25</data_cadastro>
-        <informacoes_basicas>
-            <nome>Monitor UltraWide 34"</nome>
-            <categoria>Eletrônicos</categoria>
-            <fornecedor>TechCorp Brasil</fornecedor>
-        </informacoes_basicas>
-        <financeiro>
-            <preco_custo>1500.00</preco_custo>
-            <preco_venda>2299.90</preco_venda>
-            <moeda>BRL</moeda>
-        </financeiro>
-        <logistica>
-            <estoque_atual>15</estoque_atual>
-            <estoque_minimo>5</estoque_minimo>
-            <peso_kg>6.5</peso_kg>
-        </logistica>
-    </produto>
-    """
-    root = ET.fromstring(xml_data)
+    def destroy():
+        container.visible = False
+        page.update()
 
-    # Função auxiliar para criar campos de leitura estilizados
-    def field_box(label, value, icon, col=None):
-        return ft.Container(
-            content=ft.Column([
-                ft.Row([ft.Icon(icon, size=16, color=ft.Colors.BLUE_700), ft.Text(label, size=12, weight="bold", color=ft.Colors.BLUE_GREY_400)]),
-                ft.Text(value, size=16, weight="w500", color=ft.Colors.BLACK),
-            ], spacing=2),
-            padding=10,
-            border=ft.border.all(1, ft.Colors.GREY_300),
-            border_radius=8,
-            expand=col,
-        )
 
-    # Estruturando o "Papel" do Formulário
-    documento = ft.Container(
-        content=ft.Column([
-            # Cabeçalho do Documento
-            ft.Row([
-                ft.Icon(ft.Icons.DESCRIPTION_ROUNDED, size=40, color=ft.Colors.BLUE_800),
-                ft.Column([
-                    ft.Text("FICHA TÉCNICA DO PRODUTO", size=20, weight="bold"),
-                    ft.Text(f"ID do Registro: {root.find('id').text} | Data: {root.find('data_cadastro').text}", color=ft.Colors.GREY_600),
-                ], spacing=0)
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            
-            ft.Divider(height=30, color=ft.Colors.TRANSPARENT),
+    nome_arquivo = ""
+    caminho_arquivo = ""
+    def on_file_picked(e: ft.FilePickerResultEvent):
+        nonlocal nome_arquivo, caminho_arquivo
+        if e.files:
+            nome_arquivo = e.files[0].name
+            caminho_arquivo = e.files[0].path
+            print(nome_arquivo)
+            print(caminho_arquivo)
+            page.update()
+            destroy()
 
-            # Seção 1: Informações Básicas
-            ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.Colors.BLUE_800),
-            ft.Row([
-                field_box("Nome do Produto", root.find(".//nome").text, ft.Icons.INVENTORY_2, col=True),
-            ]),
-            ft.Row([
-                field_box("Categoria", root.find(".//categoria").text, ft.Icons.CATEGORY, col=True),
-                field_box("Fornecedor", root.find(".//fornecedor").text, ft.Icons.BUSINESS, col=True),
-            ]),
 
-            ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
+    file_picker = ft.FilePicker(on_result=on_file_picked)
+    page.overlay.append(file_picker)
 
-            # Seção 2: Valores e Logística (Lado a Lado)
-            ft.Row([
-                # Coluna Financeira
-                ft.Column([
-                    ft.Text("FINANCEIRO", weight="bold", color=ft.Colors.BLUE_800),
-                    field_box("Preço de Venda", f"R$ {root.find('.//preco_venda').text}", ft.Icons.ATTACH_MONEY),
-                    field_box("Moeda", root.find('.//moeda').text, ft.Icons.CURRENCY_EXCHANGE),
-                ], expand=True),
-                
-                # Coluna Logística
-                ft.Column([
-                    ft.Text("LOGÍSTICA / ESTOQUE", weight="bold", color=ft.Colors.BLUE_800),
-                    field_box("Qtd. em Estoque", root.find('.//estoque_atual').text, ft.Icons.STORE),
-                    field_box("Peso Unitário", f"{root.find('.//peso_kg').text} kg", ft.Icons.SCALE),
-                ], expand=True),
-            ], alignment=ft.MainAxisAlignment.START, spacing=20),
+    icone = ft.Icon(ft.Icons.DESCRIPTION_OUTLINED, size=64, color=ft.Colors.BLUE_600)
 
-            ft.Divider(height=40),
-            
-            # Rodapé com Botões de Ação
-            ft.Row([
-                ft.OutlinedButton("Imprimir PDF", icon=ft.Icons.PRINT),
-                ft.ElevatedButton("Editar Informações", icon=ft.Icons.EDIT, bgcolor=ft.Colors.BLUE_800, color=ft.Colors.WHITE),
-            ], alignment=ft.MainAxisAlignment.END, spacing=10)
+    texto_caminho = ft.Text(
+        "Nenhum arquivo selecionado",
+        size=13,
+        color=ft.Colors.GREY_500,
+        max_lines=1,
+        overflow=ft.TextOverflow.ELLIPSIS,
+        width=220,
+        text_align=ft.TextAlign.CENTER,
+    )
 
-        ], spacing=10),
-        
-        # Estilização do Container Principal (O Papel)
-        margin=ft.margin.all(20),
-        padding=40,
-        bgcolor=ft.Colors.WHITE,
-        border_radius=15,
-        shadow=ft.BoxShadow(
-            spread_radius=1,
-            blur_radius=15,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+    botao = ft.ElevatedButton(
+        text="Selecione um arquivo",
+        icon=ft.Icons.FOLDER_OPEN_OUTLINED,
+        on_click=lambda e: file_picker.pick_files(),
+        style=ft.ButtonStyle(
+            color=ft.Colors.WHITE,
+            bgcolor=ft.Colors.BLUE_600,
+            shape=ft.RoundedRectangleBorder(radius=8),
+            padding=ft.padding.symmetric(horizontal=24, vertical=14),
         ),
-        width=800,
     )
 
-    # Centraliza o formulário na tela
-    page.add(
-        ft.Row([documento], alignment=ft.MainAxisAlignment.CENTER)
+    container = ft.Container(
+        width=300,
+        bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_300),
+        border_radius=16,
+        padding=ft.padding.symmetric(horizontal=24, vertical=32),
+        shadow=ft.BoxShadow(
+            blur_radius=20,
+            color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK),
+            offset=ft.Offset(0, 4),
+        ),
+        content=ft.Column(
+            [
+                icone,
+                ft.Text(
+                    "Carregar arquivo",
+                    size=16,
+                    weight=ft.FontWeight.W_500,
+                    color=ft.Colors.GREY_800,
+                ),
+                ft.Container(height=8),
+                botao,
+                ft.Container(height=4),
+                texto_caminho,
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=6,
+        ),
     )
+
+    page.add(container)
 
 ft.app(target=main)
