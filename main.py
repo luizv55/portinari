@@ -1,5 +1,4 @@
 import flet as ft
-import threading
 
 def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.CENTER

@@ -63,8 +63,6 @@ def guia_sadt(caminho):
         return el.text if el is not None else None
 
     
-    # Abrindo a tag procedimentoExecutado
-    procedimentos_xml = root.xpath('//ans:procedimentoExecutado', namespaces=ns)
 
     # Para as guias de SP-SADT
     guias = root.xpath('.//ans:guiaSP-SADT', namespaces=ns)
@@ -160,3 +158,29 @@ def guia_sadt(caminho):
         lista_dados.append(dados_guia)
     return lista_dados, guias, guias_outras_despesas
     
+
+
+
+
+
+# Função para a leitura da guia de resumo de internação
+def guia_resumo_internacao(caminho):
+    tree = etree.parse(caminho)
+    root = tree.getroot()
+    ns = {'ans': 'http://www.ans.gov.br/padroes/tiss/schemas'}
+
+    # Função para tratar dado tipo None
+    def get_text(element, path, ns):
+        el = element.find(path, namespaces=ns)
+        return el.text if el is not None else None
+
+    # Para as guias de resumoInternacao
+    guias = root.xpath('.//ans:guiaResumoInternacao', namespaces=ns)
+
+    # Informações da guia
+    lista_dados = []
+
+    for guia in guias:
+        dados_guia = {
+            
+        }

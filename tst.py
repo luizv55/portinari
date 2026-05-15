@@ -3,18 +3,6 @@ import xml.etree.ElementTree as ET
 import json
 from xml_parser import cabecalho, guia_consulta, guia_sadt
 
-# Extraindo as informações do cabeçalho
-caminho = r"C:\Users\luizvieira\Documents\Projeto\portinari\00000440322026010000000090203\4020020000000090000000000263322302026010000044032004203.xml"
-lote, data_registro, hr_registro, cnpj_origem, cnpj_destino = cabecalho(caminho)
-
-
-# Extraindo as informações de consulta
-caminho1 = r"C:\Users\luizvieira\Documents\Projeto\portinari\00000440322026010000000090203\4020020000000090000000000263322302026010000044032004203.xml"
-lista_dados, guias_consulta = guia_consulta(caminho1)
-if len(guias_consulta) == 0:
-    lista_dados, guias_sadt, guias_outras = guia_sadt(caminho1)
-
-
 # Extraindo as informações de especialidades
 with open("src/CBOS.json", "r", encoding="utf-8") as f:
     tabela_cbos = json.load(f)
@@ -56,11 +44,116 @@ with open("src/viaAcesso.json", "r", encoding="utf-8") as f:
 def main(page: ft.Page):
     page.title = "Visualizador de Documento XML"
     page.bgcolor = ft.Colors.GREY_100
-    page.scroll = ft.ScrollMode.ADAPTIVE
     page.theme_mode = ft.ThemeMode.LIGHT
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+
+
+#=======Estado de aplicação=============
+    lista_dados = []
+    guias_consulta = []
+    guias_sadt = []
+    guias_outras = []
+    lote = ""
+    data_registro = ""
+    hr_registro = ""
+    cnpj_origem = ""
+    cnpj_destino = ""
+
+
+    nome_arquivo = ""
+    caminho_arquivo = ""
+    def on_file_picked(e: ft.FilePickerResultEvent):
+        nonlocal nome_arquivo, caminho_arquivo, lista_dados, guias_consulta, guias_sadt, guias_outras, lote, data_registro, hr_registro, cnpj_origem, cnpj_destino
+        if e.files:
+            nome_arquivo = e.files[0].name
+            caminho_arquivo = e.files[0].path
+
+            if caminho_arquivo != '':
+                # Extraindo as informações do cabeçalho
+                res_cab = cabecalho(caminho_arquivo)
+                lote, data_registro, hr_registro, cnpj_origem, cnpj_destino = res_cab
+
+                lista_dados, guias_consulta = guia_consulta(caminho_arquivo)
+                if len(guias_consulta) == 0:
+                    lista_dados, guias_sadt, guias_outras = guia_sadt(caminho_arquivo)
+
+                d = data_registro
+                txt_tipo_guia.value = 'GUIA CONSULTA' if len(guias_consulta) > 0 else 'GUIA SP/SADT'
+                txt_info_registro.value = f"ID do Registro: {lote} | Data: {d[8:10]}/{d[5:7]}/{d[0:4]}"
+                txt_cnpj_origem.value = cnpj_origem
+                txt_cnpj_destino.value = cnpj_destino
+
+            # para fechar e aparecer o documento
+            tela_upload.visible = False
+            tela_documento.visible = True
+            documento.visible = True
+            page.update()
+            atualizar_card()
 
 
 
+
+
+
+
+    file_picker = ft.FilePicker(on_result=on_file_picked)
+    page.overlay.append(file_picker)
+
+    icone = ft.Icon(ft.Icons.DESCRIPTION_OUTLINED, size=64, color=ft.Colors.BLUE_600)
+
+    texto_caminho = ft.Text(
+        "Nenhum arquivo selecionado",
+        size=13,
+        color=ft.Colors.GREY_500,
+        max_lines=1,
+        overflow=ft.TextOverflow.ELLIPSIS,
+        width=220,
+        text_align=ft.TextAlign.CENTER,
+    )
+
+    botao = ft.ElevatedButton(
+        text="Selecione um arquivo",
+        icon=ft.Icons.FOLDER_OPEN_OUTLINED,
+        on_click=lambda e: file_picker.pick_files(),
+        style=ft.ButtonStyle(
+            color=ft.Colors.WHITE,
+            bgcolor=ft.Colors.BLUE_600,
+            shape=ft.RoundedRectangleBorder(radius=8),
+            padding=ft.padding.symmetric(horizontal=24, vertical=14),
+        ),
+    )
+
+    container = ft.Container(
+        width=300,
+        bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_300),
+        border_radius=16,
+        padding=ft.padding.symmetric(horizontal=24, vertical=32),
+        shadow=ft.BoxShadow(
+            blur_radius=20,
+            color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK),
+            offset=ft.Offset(0, 4),
+        ),
+        content=ft.Column(
+            [
+                icone,
+                ft.Text(
+                    "Carregar arquivo",
+                    size=16,
+                    weight=ft.FontWeight.W_500,
+                    color=ft.Colors.GREY_800,
+                ),
+                ft.Container(height=8),
+                botao,
+                ft.Container(height=4),
+                texto_caminho,
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=6,
+        ),
+    )
 
 
 
@@ -154,11 +247,6 @@ def main(page: ft.Page):
         return [c for c in lista_dados if termo in str(c.get("guia_prestador", ""))]
 
 
-    def filtrar_guias(termo: str):
-        termo_busca["valor"] = termo
-        pagina_atual["index"] = 0  # volta para a primeira ao filtrar
-        atualizar_card()
-
 
     def limpar_pesquisa():
         search_field.value = ""
@@ -184,7 +272,7 @@ def main(page: ft.Page):
             return ft.Container(
                 content=ft.Column([
                     ft.Row([
-                        ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.colors.BLUE_800)
+                        ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.Colors.BLUE_800)
                     ]),
                     ft.Row([
                         field_box("Guia Prestador", dados['guia_prestador'], ft.Icons.ASSIGNMENT, col=True),
@@ -192,10 +280,10 @@ def main(page: ft.Page):
                         field_box("Carteira", dados['carteira'], ft.Icons.CONTACT_EMERGENCY, col=True)
                     ]),
 
-                    ft.Divider(height=30, color=ft.colors.TRANSPARENT),
+                    ft.Divider(height=30, color=ft.Colors.TRANSPARENT),
 
                     ft.Row([
-                        ft.Text('INFORMAÇÕES DO PROFISSIONAL', weight="bold", color=ft.colors.BLUE_800)
+                        ft.Text('INFORMAÇÕES DO PROFISSIONAL', weight="bold", color=ft.Colors.BLUE_800)
                     ]),
                     ft.Row([
                         field_box("Nome do Profissinal", dados['nome_prof'], ft.Icons.MEDICAL_SERVICES, col=True),
@@ -206,11 +294,11 @@ def main(page: ft.Page):
                         field_box("Número do Conselho", dados['nr_conselho'], ft.Icons.FINGERPRINT, col=True),
                         field_box("UF", dados['cd_uf'], ft.Icons.MAP, col=True)]),
                     
-                    ft.Divider(height=30, color=ft.colors.TRANSPARENT),
+                    ft.Divider(height=30, color=ft.Colors.TRANSPARENT),
 
 
                     ft.Row([
-                        ft.Text('INFORMAÇÕES DO PROCEDIMENTO', weight='bold', color=ft.colors.BLUE_800)
+                        ft.Text('INFORMAÇÕES DO PROCEDIMENTO', weight='bold', color=ft.Colors.BLUE_800)
                     ]),
                     ft.Row([
                         field_box("Data do Atendimento", data_br, ft.Icons.CALENDAR_MONTH, col=True),
@@ -219,14 +307,14 @@ def main(page: ft.Page):
                     ft.Row([
                         field_box("Código do Procedimento", dados['cd_proc'], ft.Icons.NUMBERS, col=True),
                         field_box("Código da Tabela", dados['cd_tabela'], ft.Icons.TABLE_CHART, col=True),
-                        field_box("Valor do Procedimento", dados['vl_proc'], ft.Icons.ATTACH_MONEY, col=True),
+                        field_box("Valor do Procedimento", f"R$ {dados['vl_proc']}", ft.Icons.ATTACH_MONEY, col=True),
                     ])
                 ]),
                 margin=ft.margin.only(top=10, bottom=10),
                 padding=40,
-                bgcolor=ft.colors.WHITE,
+                bgcolor=ft.Colors.WHITE,
                 border_radius=15,
-                shadow=ft.BoxShadow(blur_radius=15, color=ft.colors.with_opacity(0.1, ft.colors.BLACK)),
+                shadow=ft.BoxShadow(blur_radius=15, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK)),
                 width=800,
             )
         return ft.Container()
@@ -294,7 +382,7 @@ def main(page: ft.Page):
                 return ft.Container(
                     content=ft.Column([
                         ft.Row([
-                            ft.Text(f"PROCEDIMENTO EXECUTADO - {proc.get('sequencial_item', '-')}", weight="bold", color=ft.colors.BLUE_800)
+                            ft.Text(f"PROCEDIMENTO EXECUTADO - {proc.get('sequencial_item', '-')}", weight="bold", color=ft.Colors.BLUE_800)
                         ]),
                         ft.Row([
                             field_box('Data de Execução', data_br, ft.Icons.CALENDAR_MONTH, col=True),
@@ -313,15 +401,15 @@ def main(page: ft.Page):
                             field_box('Técnica Utilizada', f"{proc.get('tecnica_utilizada') or ''} {codigo_tecnicaUtilizada}", ft.Icons.ASSIGNMENT, col=True)
                         ]),
                         ft.Row([
-                            ft.Text("VALORAÇÃO", weight="bold", color=ft.colors.BLUE_800)
+                            ft.Text("VALORAÇÃO", weight="bold", color=ft.Colors.BLUE_800)
                         ]),
                         ft.Row([
-                            field_box('Valor Unitário', f"{proc.get('valor_unitario')}", ft.Icons.ASSIGNMENT, col=True),
-                            field_box('Valor Total', f"{proc.get('valor_total')}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Valor Unitário', f"R$ {proc.get('valor_unitario')}", ft.Icons.ASSIGNMENT, col=True),
+                            field_box('Valor Total', f"R$ {proc.get('valor_total')}", ft.Icons.ASSIGNMENT, col=True),
                             field_box('Redução de Acrescimo', f"{proc.get('reducao_acrescimo')}", ft.Icons.ASSIGNMENT, col=True)
                         ]),
                         ft.Row([
-                            ft.Text("PROFISSIONAL", weight="bold", color=ft.colors.BLUE_800),
+                            ft.Text("PROFISSIONAL", weight="bold", color=ft.Colors.BLUE_800),
                         ]),
                         ft.Row([
                             field_box('Nome', f"{proc.get('nome_prof_equipe') or '-'}", ft.Icons.ASSIGNMENT, col=True),
@@ -338,9 +426,9 @@ def main(page: ft.Page):
                     ]),
                     margin=ft.margin.only(top=10),
                     padding=ft.padding.all(20),
-                    bgcolor=ft.colors.BLUE_50,
+                    bgcolor=ft.Colors.BLUE_50,
                     border_radius=10,
-                    border=ft.border.all(1, ft.colors.BLUE_100),
+                    border=ft.border.all(1, ft.Colors.BLUE_100),
                 )
         
             # Função interna para criar card de outras despesas
@@ -357,7 +445,7 @@ def main(page: ft.Page):
                     return ft.Container(
                         content=ft.Column([
                             ft.Row([
-                                ft.Text(f"SERVIÇO EXECUTADO - {proc.get('sequencial_item2', '-')}", weight="bold", color=ft.colors.BLUE_800),
+                                ft.Text(f"SERVIÇO EXECUTADO - {proc.get('sequencial_item2', '-')}", weight="bold", color=ft.Colors.BLUE_800),
                             ]),
                             ft.Row([
                                 field_box('Data de Execução', data_br2, ft.Icons.CALENDAR_MONTH, col=True),
@@ -376,19 +464,19 @@ def main(page: ft.Page):
                                 field_box('Código de Despesa', proc.get('codigo_despesa'), ft.Icons.ASSIGNMENT, col=True),
                             ]),
                             ft.Row([
-                                ft.Text("VALORAÇÃO", weight="bold", color=ft.colors.BLUE_800)
+                                ft.Text("VALORAÇÃO", weight="bold", color=ft.Colors.BLUE_800)
                             ]),
                             ft.Row([
-                                field_box('Valor Unitário', proc.get('valor_unitario2'), ft.Icons.ASSIGNMENT, col=True),
-                                field_box('Valor Total', proc.get('valor_total2'), ft.Icons.ASSIGNMENT, col=True),
+                                field_box('Valor Unitário', f"R$ {proc.get('valor_unitario2')}", ft.Icons.ASSIGNMENT, col=True),
+                                field_box('Valor Total', f"R$ {proc.get('valor_total2')}", ft.Icons.ASSIGNMENT, col=True),
                                 field_box('Redução Acréscimo', proc.get('reducao_acrescimo2'), ft.Icons.ASSIGNMENT, col=True),
                             ])
                         ]),
                         margin=ft.margin.only(top=10),
                         padding=ft.padding.all(20),
-                        bgcolor=ft.colors.BLUE_50,
+                        bgcolor=ft.Colors.BLUE_50,
                         border_radius=10,
-                        border=ft.border.all(1, ft.colors.BLUE_100),
+                        border=ft.border.all(1, ft.Colors.BLUE_100),
                     )
                 return ft.Container()
 
@@ -405,8 +493,8 @@ def main(page: ft.Page):
             return ft.Container(
                 content=ft.Column([
                     ft.Row([
-                        ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.colors.BLUE_800),
-                        ft.Text(f"Senha: {dados['senha']} | Data Autorização: {d[8:10]}/{d[5:7]}/{d[0:4]}", color=ft.colors.GREY_600)
+                        ft.Text("INFORMAÇÕES BÁSICAS", weight="bold", color=ft.Colors.BLUE_800),
+                        ft.Text(f"Senha: {dados['senha']} | Data Autorização: {d[8:10]}/{d[5:7]}/{d[0:4]}", color=ft.Colors.GREY_800)
                         
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Row([
@@ -416,7 +504,7 @@ def main(page: ft.Page):
                         field_box("Carteirinha", dados['carteira'], ft.Icons.ASSIGNMENT, col=True),
                     ]),
                     ft.Row([
-                        ft.Text("DADOS DO SOLICITANTE", weight='bold', color=ft.colors.BLUE_800),
+                        ft.Text("DADOS DO SOLICITANTE", weight='bold', color=ft.Colors.BLUE_800),
                     ]),
                     ft.Row([
                         field_box('Nome', dados['contratado_solicitante'][:13], ft.Icons.ASSIGNMENT, col=True),
@@ -464,12 +552,12 @@ def main(page: ft.Page):
                             field_box('Valor Total Geral', f"R$ {dados['valor_tot_geral']}", ft.Icons.ACCOUNT_BALANCE, col=True)
                         ])
                     ]),
-                    ft.Divider(height=20, color=ft.colors.TRANSPARENT),
+                    ft.Divider(height=20, color=ft.Colors.TRANSPARENT),
                     *(
                         [
                             ft.Row([
-                                ft.Icon(ft.Icons.MEDICAL_SERVICES, size=16, color=ft.colors.BLUE_800),
-                                ft.Text("PROCEDIMENTOS", weight="bold", color=ft.colors.BLUE_800),
+                                ft.Icon(ft.Icons.MEDICAL_SERVICES, size=16, color=ft.Colors.BLUE_800),
+                                ft.Text("PROCEDIMENTOS", weight="bold", color=ft.Colors.BLUE_800),
                             ]),
                             *cards_procedimentos,
                         ] if cards_procedimentos else []
@@ -477,8 +565,8 @@ def main(page: ft.Page):
                     *(
                         [
                             ft.Row([
-                                ft.Icon(ft.Icons.RECEIPT_LONG, size=16, color=ft.colors.BLUE_800),
-                                ft.Text("OUTRAS DESPESAS", weight="bold", color=ft.colors.BLUE_800),
+                                ft.Icon(ft.Icons.RECEIPT_LONG, size=16, color=ft.Colors.BLUE_800),
+                                ft.Text("OUTRAS DESPESAS", weight="bold", color=ft.Colors.BLUE_800),
                             ]),
                             *card_despesas,
                         ] if card_despesas else []
@@ -486,13 +574,21 @@ def main(page: ft.Page):
                 ]),
                 margin=ft.margin.only(top=10, bottom=10),
                 padding=40,
-                bgcolor=ft.colors.WHITE,
+                bgcolor=ft.Colors.WHITE,
                 border_radius=15,
-                shadow=ft.BoxShadow(blur_radius=15, color=ft.colors.with_opacity(0.1, ft.colors.BLACK)),
+                shadow=ft.BoxShadow(blur_radius=15, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK)),
                 width=800,
             )
         return ft.Container()
-    
+# ====================================================================================================================================================
+    # Container para leitura da guia de resumo de internação
+            
+
+
+
+
+
+
 
 # ====================================================================================================================   
     # Adicionando a barra de busca
@@ -519,135 +615,119 @@ def main(page: ft.Page):
         on_change=lambda e: filtrar_guias(e.control.value),
         on_submit=lambda e: filtrar_guias(e.control.value),
     )
-
+# ====================================================================================================================
+    # Criando um botão para fechar 
+    btn_fechar = ft.IconButton(
+        icon=ft.Icons.CLOSE,
+        icon_color=ft.Colors.WHITE,
+        tooltip='Fechar Documento',
+        on_click=lambda e: fechar_documento(),
+    )
+    
+    def fechar_documento():
+        tela_documento.visible = False
+        tela_upload.visible = True
+        card_container.controls.clear()
+        pagina_atual['index'] = 0
+        page.update()
 
 # ====================================================================================================================
     # Adicionando a top bar
     top_bar = ft.Container(
-        content=ft.Row(
-            [
-                search_field,
-                btn_anterior,
-                lbl_pagina,
-                btn_proximo
-            ],
-            alignment=ft.MainAxisAlignment.END,
-            spacing=6,
-        ),
-        bgcolor=ft.Colors.BLUE_800,
-        padding=ft.padding.symmetric(horizontal=16, vertical=8),
-        border_radius=ft.border_radius.only(top_left=15, top_right=15),
-        width=800
-    )
+    content=ft.Row(
+        [
+            ft.Row(
+                [search_field],
+                alignment=ft.MainAxisAlignment.START,
+                expand=True,
+            ),
+            ft.Row(
+                [btn_anterior, lbl_pagina, btn_proximo],
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
+            ft.Row([btn_fechar], alignment=ft.MainAxisAlignment.END,expand=True),
+        ],
+    ),
+    bgcolor=ft.Colors.BLUE_800,
+    padding=ft.padding.symmetric(horizontal=16, vertical=8),
+    border_radius=ft.border_radius.only(top_left=15, top_right=15),
+    width=800
+)
 
 # ====================================================================================================================
     # Container com todas as informações principais
+    txt_tipo_guia = ft.Text('', size=20, weight="bold")
+    txt_info_registro = ft.Text('', color=ft.Colors.GREY_600)
+    txt_cnpj_origem = ft.Text('', size=16, weight="w500", color=ft.Colors.BLACK, selectable=True)
+    txt_cnpj_destino = ft.Text('', size=16, weight="w500", color=ft.Colors.BLACK, selectable=True)
     d = data_registro
     documento = ft.Container(
+        visible=True,
         content=ft.Column([
             top_bar,  # <-- barra entra aqui
             ft.Container(
                 content=ft.Column([
                     # Linha 1
                     ft.Row([
-                        ft.Icon(ft.icons.DESCRIPTION_ROUNDED, size=40, color=ft.colors.BLUE_800),
+                        ft.Icon(ft.Icons.DESCRIPTION_ROUNDED, size=40, color=ft.Colors.BLUE_800),
                         ft.Column([
-                            ft.Text('GUIA CONSULTA', size=20, weight="bold"),
-                            ft.Text(f"ID do Registro: {lote} | Data: {d[8:10]}/{d[5:7]}/{d[0:4]}", color=ft.colors.GREY_600),
+                            txt_tipo_guia,
+                            txt_info_registro,
                         ], spacing=0)
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
 
                     # Linha 2
                     ft.Row([
-                        field_box("CNPJ de Origem", cnpj_origem, ft.icons.INVENTORY_2, col=True),
-                        ft.Icon(ft.icons.ARROW_FORWARD, size=40, color=ft.colors.BLUE_800),
-                        field_box("CNPJ de Destino", cnpj_destino, ft.icons.INVENTORY_2, col=True)
+                        ft.Container(content=ft.Column([
+                            ft.Row([ft.Icon(ft.Icons.INVENTORY_2, size=16, color=ft.Colors.BLUE_700), ft.Text("CNPJ de Origem", size=12, weight="bold", color=ft.Colors.BLUE_GREY_400)]),
+                            txt_cnpj_origem,
+                        ], spacing=2), padding=10, border=ft.border.all(1, ft.Colors.GREY_800), border_radius=8, expand=True),
+                        ft.Icon(ft.Icons.ARROW_FORWARD, size=40, color=ft.Colors.BLUE_800),
+                        ft.Container(content=ft.Column([
+                            ft.Row([ft.Icon(ft.Icons.INVENTORY_2, size=16, color=ft.Colors.BLUE_700), ft.Text("CNPJ de Destino", size=12, weight="bold", color=ft.Colors.BLUE_GREY_400)]),
+                            txt_cnpj_destino,
+                        ], spacing=2), padding=10, border=ft.border.all(1, ft.Colors.GREY_800), border_radius=8, expand=True),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
 
-                    ft.Divider(height=30, color=ft.colors.TRANSPARENT)
+                    ft.Divider(height=30, color=ft.Colors.TRANSPARENT)
                 ]),
                 padding=40,
             )
         ], spacing=0),  # spacing=0 para a barra colar no conteúdo
 
         margin=ft.margin.all(20),
-        bgcolor=ft.colors.WHITE,
+        bgcolor=ft.Colors.WHITE,
         border_radius=15,
         shadow=ft.BoxShadow(
             spread_radius=1,
             blur_radius=15,
-            color=ft.colors.with_opacity(0.1, ft.colors.BLACK),
+            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
         ),
         width=800,
     )
 
-    cards_column = ft.Column(spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-    if len(guias_consulta) > 0:
-        for c in lista_dados:
-            cards_column.controls.append(criar_card_consulta(c))
-    else:
-        for c in lista_dados:
-            cards_column.controls.append(criar_card_sadt(c))
 
-
-    def filtrar_guias(termo: str):
-        cards_column.controls.clear()
-        termo = termo.strip()
-
-        if not termo:
-            for c in lista_dados:
-                cards_column.controls.append(criar_card_consulta(c))
-        else:
-            encontrados = [c for c in lista_dados if termo in str(c['guia_prestador'])]
-            if encontrados:
-                for c in encontrados:
-                    cards_column.controls.append(criar_card_consulta(c))
-            else:
-                cards_column.controls.append(
-                    ft.Container(
-                        content=ft.Text(
-                            f'Nenhuma guia encontrada para "{termo}"',
-                            color=ft.Colors.GREY_500,
-                            size=16,
-                        ),
-                        padding=40,
-                        alignment=ft.alignment.center,
-                    )
-                )
-        page.update()
-
-
-
-
-    nav_bar = ft.Container(
-            content=ft.Row(
-                [btn_anterior, lbl_pagina, btn_proximo],
-                alignment=ft.MainAxisAlignment.CENTER,
-                spacing=20,
-            ),
-            margin=ft.margin.only(top=5, bottom=5),
-            width=800,
-        )
-
-    # Layout final
-    layout = ft.Column(
-            controls=[documento, card_container],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        )
+    
+    # Tela de upload
+    tela_upload = ft.Row([container], alignment=ft.MainAxisAlignment.CENTER,
+                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                         #expand=True,
+                         )
+    
+    # Tela do documento
+    tela_documento = ft.Column([documento, card_container], 
+                               horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                               scroll=ft.ScrollMode.AUTO,
+                               visible=False,
+                               expand=True
+                               )
     
 
 
 
+    page.add(tela_upload, tela_documento)
 
-    barra_flutuante = ft.Container(
-        content=search_field,
-        top=20,
-        right=20,
-    )
-
-    page.add(ft.Row([layout], alignment=ft.MainAxisAlignment.CENTER))
-
-    atualizar_card()
+    
 
 
 ft.app(target=main)
